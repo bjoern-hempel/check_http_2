@@ -70,7 +70,7 @@ usage() {
     echo "Syntax: check_http_2 [[[-u url ] [-p path] [-s status-code] [-t check-content]] | [-h] | [-v]]"
     echo "options:"
     echo "-u | --url            Adds the url you want to check."
-    echo "-p | --path           The path you want to check (defatult is \"/\")."
+    echo "-p | --path           The path you want to check (default is \"/\")."
     echo "-s | --status-code    The expected status code."
     echo "-t | --content        The content the request must contain."
     echo
