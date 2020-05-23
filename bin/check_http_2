@@ -8,7 +8,7 @@
 #
 # @copyright MIT License
 # @copyright
-# @copyright Copyright (c) 2018 Björn Hempel
+# @copyright Copyright (c) 2020 Björn Hempel
 # @copyright
 # @copyright Permission is hereby granted, free of charge, to any person obtaining a copy
 # @copyright of this software and associated documentation files (the "Software"), to deal
@@ -35,6 +35,7 @@
 
 # read some parameters
 url=''
+path='/'
 check_status_code=0
 check_content=''
 user=''
@@ -66,9 +67,10 @@ usage() {
     # Display Help
     echo "This is a simple nagios check script for checking the http status."
     echo
-    echo "Syntax: check_http_2 [[[-u url ] [-s status-code] [-t check-content]] | [-h]]"
+    echo "Syntax: check_http_2 [[[-u url ] [-p path] [-s status-code] [-t check-content]] | [-h] | [-v]]"
     echo "options:"
     echo "-u | --url            Adds the url you want to check."
+    echo "-p | --path           The path you want to check (defatult is \"/\")."
     echo "-s | --status-code    The expected status code."
     echo "-t | --content        The content the request must contain."
     echo
@@ -91,6 +93,9 @@ while [ "$1" != "" ]; do
     case $1 in
         -u | --url )            shift
                                 url=$1
+                                ;;
+        -p | --path )           shift
+                                path=$1
                                 ;;
         -s | --status-code )    shift
                                 check_status_code=$1
@@ -115,6 +120,9 @@ if [ "$url" == "" ] || [ $check_status_code -eq 0 ]; then
     usage
     exit
 fi
+
+# add path to url
+url+=$path
 
 
 
