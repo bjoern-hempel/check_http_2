@@ -1,0 +1,236 @@
+#!/bin/bash
+
+# ------------
+# A simple nagios check script to check a http service
+#
+# @author    Björn Hempel <bjoern@hempel.li>
+# @version   v1.0 (2020-05-23)
+#
+# @copyright MIT License
+# @copyright
+# @copyright Copyright (c) 2018 Björn Hempel
+# @copyright
+# @copyright Permission is hereby granted, free of charge, to any person obtaining a copy
+# @copyright of this software and associated documentation files (the "Software"), to deal
+# @copyright in the Software without restriction, including without limitation the rights
+# @copyright to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# @copyright copies of the Software, and to permit persons to whom the Software is
+# @copyright furnished to do so, subject to the following conditions:
+# @copyright
+# @copyright The above copyright notice and this permission notice shall be included in all
+# @copyright copies or substantial portions of the Software.
+# @copyright
+# @copyright THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# @copyright IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# @copyright FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# @copyright AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# @copyright LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# @copyright OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# @copyright SOFTWARE.
+# @copyright
+# @copyright Written by Björn Hempel <bjoern@hempel.li>.
+# ------------
+
+
+
+# read some parameters
+url=''
+check_status_code=0
+check_content=''
+user=''
+pass=''
+curl_parameter=''
+
+
+
+# nagios codes
+nagios_type='HTTP'
+nagios_ok_text="$nagios_type OK:"
+nagios_ok_status=0
+nagios_warning_text="$nagios_type WARNING:"
+nagios_warning_status=1
+nagios_critical_text="$nagios_type CRITICAL:"
+nagios_critical_status=2
+nagios_unknown_text="$nagios_type UNKNOWN:"
+nagios_unknown_status=3
+
+
+
+# ------------
+# Return the usage of this script
+#
+# @author  Bjoern Hempel <bjoern@hempel.li>
+# @version 1.0 (2020-05-23)
+# ------------
+usage() {
+    echo "usage: check_http_2 [[[-u url ] [-s status-code] [-t check-content]] | [-h]]"
+}
+
+while [ "$1" != "" ]; do
+    case $1 in
+        -u | --url )            shift
+                                url=$1
+                                ;;
+        -s | --status-code )    shift
+                                check_status_code=$1
+                                ;;
+        -t | --content )        shift
+                                check_content=$1
+                                ;;
+        -h | --help )           usage
+                                exit
+                                ;;
+        * )                     usage
+                                exit 1
+    esac
+    shift
+done
+
+# check the given parameter
+if [ "$url" == "" ] || [ $check_status_code -eq 0 ]; then
+    usage
+    exit
+fi
+
+
+
+# ------------
+# Return the content from given url
+#
+# @author  Bjoern Hempel <bjoern@hempel.li>
+# @version 1.0 (2020-05-23)
+# ------------
+get_content() {
+    local url=$1
+    local user=''
+    local pass=''
+    local curl_parameter=''
+
+    if [[ $user && $pass ]]; then
+        curl_parameter+=" -u $user:$pass"
+    fi
+
+    echo "$(curl -s -L -i -w '\n-----\nNAGIOS_HTTP_CODE: %{http_code}\nNAGIOS_TIME_TOTAL: %{time_total}\nNAGIOS_SIZE_DOWNLOAD: %{size_download}' $curl_parameter $url)"
+}
+
+# ------------
+# Returns the http string
+#
+# @author  Bjoern Hempel <bjoern@hempel.li>
+# @version 1.0 (2020-05-23)
+# ------------
+get_http_string() {
+    local content=$1
+
+    echo "$content" | head -n 1 | tr -d '\n' | tr -d '\r'
+}
+
+
+# ------------
+# Returns the value from curl
+#
+# @author  Bjoern Hempel <bjoern@hempel.li>
+# @version 1.0 (2020-05-23)
+# ------------
+get_curl_value() {
+    local content=$1
+    local curl_name="$2: "
+    local replace_comma=${3:-false}
+
+    local line=$(echo "$content" | grep "$curl_name")
+
+    local curl_value=${line#"$curl_name"}
+
+    if $replace_comma; then
+        curl_value=$(echo "$curl_value" | tr ',' '.')
+    fi
+
+    echo $curl_value
+}
+
+# ------------
+# Check the status code
+#
+# @author  Bjoern Hempel <bjoern@hempel.li>
+# @version 1.0 (2020-05-23)
+# ------------
+is_status_code() {
+    local content=$1
+    local check_status_code=$2
+    local search_pattern="NAGIOS_HTTP_CODE: "
+
+    local line=$(echo "$content" | grep "$search_pattern")
+
+    local status_code=${line#"$search_pattern"}
+
+    # set global variable
+    current_status_code=$status_code
+
+    # the given satus code is equal
+    if [ $check_status_code -eq $status_code ]; then
+        return 0
+    fi
+
+    # the given status code is not equal
+    return 1
+}
+
+# ------------
+# Check if the given content exists on page
+#
+# @author  Bjoern Hempel <bjoern@hempel.li>
+# @version 1.0 (2020-05-23)
+# ------------
+content_was_found() {
+    local content=$1
+    local check_content=$2
+
+    local line=$(echo "$content" | grep "$check_content")
+
+    # the given content was found
+    if [ "$line" != "" ]; then
+        return 0
+    fi
+
+    # the given content was not found
+    return 1
+}
+
+
+
+# get content
+content=$(get_content $url)
+http_string=$(get_http_string "$content")
+time_total=$(get_curl_value "$content" "NAGIOS_TIME_TOTAL" true)
+size_download=$(get_curl_value "$content" "NAGIOS_SIZE_DOWNLOAD")
+url_effective='https://www.futuresax.de:443/'
+nagios_text="$nagios_ok_text"
+nagios_status=$nagios_ok_status
+nagios_error=""
+
+# check status code
+current_status_code=0
+if [ "$nagios_error" == "" ] && ! is_status_code "$content" $check_status_code; then
+    nagios_text="$nagios_critical_text"
+    nagios_status=$nagios_critical_status
+    nagios_error="expected status code $check_status_code was not returned"
+fi
+
+#echo "HTTP CRITICAL: HTTP/1.1 200 OK - string '<title>futureSAX - die Inn...' not found on 'https://www.futuresax.de:443/' - 72881 bytes in 3.049 second response time"
+
+# check content
+if [ "$nagios_error" == "" ] && [ "$check_content" != "" ]  && ! content_was_found "$content" "$check_content"; then
+    nagios_text="$nagios_critical_text"
+    nagios_status=$nagios_critical_status
+    nagios_error="string '$check_content' not found on ''"
+fi
+
+# no error occurs
+if [ "$nagios_error" == "" ]; then
+    echo "$nagios_text $http_string - $size_download bytes in $time_total second response time"
+else
+    echo "$nagios_text $http_string - $nagios_error - $size_download bytes in $time_total second response time"
+fi
+
+exit $nagios_status
+
