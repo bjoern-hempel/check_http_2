@@ -63,7 +63,28 @@ nagios_unknown_status=3
 # @version 1.0 (2020-05-23)
 # ------------
 usage() {
-    echo "usage: check_http_2 [[[-u url ] [-s status-code] [-t check-content]] | [-h]]"
+    # Display Help
+    echo "This is a simple nagios check script for checking the http status."
+    echo
+    echo "Syntax: check_http_2 [[[-u url ] [-s status-code] [-t check-content]] | [-h]]"
+    echo "options:"
+    echo "-u | --url            Adds the url you want to check."
+    echo "-s | --status-code    The expected status code."
+    echo "-t | --content        The content the request must contain."
+    echo
+    echo "-h | --help           Shows this help dialog."
+    echo "-v | --version        Shows the version of this script."
+    echo
+}
+
+# ------------
+# Shows some version informations
+#
+# @author  Bjoern Hempel <bjoern@hempel.li>
+# @version 1.0 (2020-05-23)
+# ------------
+version() {
+    echo "http_check_2 1.0 - a nagios check script by Bjoern Hempel <bjoern@hempel.li>"
 }
 
 while [ "$1" != "" ]; do
@@ -78,6 +99,9 @@ while [ "$1" != "" ]; do
                                 check_content=$1
                                 ;;
         -h | --help )           usage
+                                exit
+                                ;;
+        -v | --version)         version
                                 exit
                                 ;;
         * )                     usage
