@@ -1,4 +1,4 @@
-# http_check_2 - a simple nagios http check script
+# check_http_2 - a simple nagios http check script
 
 ## Usage
 
